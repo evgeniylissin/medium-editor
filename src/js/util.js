@@ -1156,6 +1156,22 @@
             }
 
             return _s4() + _s4() + '-' + _s4() + '-' + _s4() + '-' + _s4() + '-' + _s4() + _s4() + _s4();
+        },
+
+        copyAttributes: function (element, sourceNode) {
+            [...sourceNode.attributes].forEach(attr => {
+                element.setAttribute(attr.nodeName === 'id' ? 'data-id' : attr.nodeName, attr.nodeValue);
+            });
+        },
+
+        isElementWhitespaceStyle: function (element, checkStyle = ['pre-line', 'pre-wrap', 'pre']) {
+            let style = window.getComputedStyle(element),
+            isList = style && style.whiteSpace && checkStyle.indexOf(style.whiteSpace) !== -1;
+            return isList;
+        },
+
+        replaceStringAt: function (input, position, replace) {
+            return input.substring(0, position) + replace + (position >= input.length ? '' : input.substring(position + 1));
         }
     };
 

@@ -55,6 +55,129 @@
 
         handleKeydown: function (event) {
             var keyCode = MediumEditor.util.getKeyCode(event);
+            if (keyCode === MediumEditor.util.keyCode.DELETE) {
+                let selection = document.getSelection(),
+                element = selection.anchorNode,
+                rootNode = element.parentNode,
+                parentNode = element.parentNode;
+                while (rootNode.nodeName !== 'DIV') {
+                    rootNode = rootNode.parentNode;
+                }
+                if (MediumEditor.util.isElementWhitespaceStyle(rootNode, ['pre-line'])) {
+                    if (element.parentNode.nodeName === 'DIV') {
+                        if (element.nodeValue.length > selection.anchorOffset) {
+                            let checkValue = element.nodeValue.substring(selection.anchorOffset > 0 ? selection.anchorOffset - 1 : 0, element.nodeValue.length > selection.anchorOffset + 2 ? selection.anchorOffset + 2 : element.nodeValue.length);
+                            //console.log('"', document.getSelection().anchorNode.nodeValue.substring(document.getSelection().anchorOffset, document.getSelection().anchorOffset + 1).charCodeAt(0), '"');
+                            if (checkValue.match(/\n/)) {
+                                let partOne = document.createTextNode(element.nodeValue.substring(0, selection.anchorOffset)),
+                                partTwo = document.createTextNode(element.nodeValue.substring(selection.anchorOffset + 1));
+                                element.parentNode.replaceChild(partTwo, element);
+                                parentNode.insertBefore(partOne, partTwo);
+                                MediumEditor.selection.moveCursor(this.base.options.ownerDocument, partTwo, 0);
+                                event.preventDefault();
+                                let eventInput = new Event('input', {
+                                    bubbles: true,
+                                    cancelable: true
+                                });
+
+                                rootNode.dispatchEvent(eventInput);// run event for the element events handling
+                                return;
+                            }
+                        }
+                    } else if (element.parentNode.nodeName === 'W') {
+                        if ((!element.nodeValue || element.nodeValue.length === selection.anchorOffset) && element.parentNode.nextSibling && element.parentNode.nextSibling.nodeValue && element.parentNode.nextSibling.nodeValue.charCodeAt(0) === 10) {
+                            element.parentNode.nextSibling.nodeValue = element.parentNode.nextSibling.nodeValue.substring(1);
+                            event.preventDefault();
+                            let eventInput = new Event('input', {
+                                bubbles: true,
+                                cancelable: true
+                            });
+
+                            rootNode.dispatchEvent(eventInput);// run event for the element events handling
+                            return;
+                        } else if (element.nodeValue && element.nodeValue.length > selection.anchorOffset) {
+                            let checkValue = element.nodeValue.substring(selection.anchorOffset > 0 ? selection.anchorOffset - 1 : 0, element.nodeValue.length > selection.anchorOffset ? selection.anchorOffset + 1 : selection.anchorOffset);
+                            if (checkValue.match(/\n/)) {
+                                /*let partOne = document.createTextNode(element.nodeValue.substring(0, selection.anchorOffset)),
+                                partTwo = document.createTextNode(element.nodeValue.substring(selection.anchorOffset + 1));
+                                element.parentNode.replaceChild(partTwo, element);
+                                parentNode.insertBefore(partOne, partTwo);
+                                MediumEditor.selection.moveCursor(this.base.options.ownerDocument, partTwo, 0);*/
+                                let moveTo = selection.anchorOffset;
+                                element.nodeValue = MediumEditor.util.replaceStringAt(element.nodeValue, selection.anchorOffset, '');
+                                MediumEditor.selection.moveCursor(this.base.options.ownerDocument, element, moveTo);
+                                event.preventDefault();
+                                let eventInput = new Event('input', {
+                                    bubbles: true,
+                                    cancelable: true
+                                });
+
+                                rootNode.dispatchEvent(eventInput);// run event for the element events handling
+                                return;
+                            }
+                        }
+                    }
+                }
+            } else if (keyCode === MediumEditor.util.keyCode.BACKSPACE) {
+                let selection = document.getSelection(),
+                element = selection.anchorNode,
+                rootNode = element.parentNode,
+                parentNode = element.parentNode;
+                while (rootNode.nodeName !== 'DIV') {
+                    rootNode = rootNode.parentNode;
+                }
+                if (MediumEditor.util.isElementWhitespaceStyle(rootNode, ['pre-line'])) {
+                    if (element.parentNode.nodeName === 'DIV') {
+                        if (element.nodeValue.length > selection.anchorOffset && selection.anchorOffset > 0) {
+                            let checkValue = element.nodeValue.substring(selection.anchorOffset > 1 ? selection.anchorOffset - 2 : 0, element.nodeValue.length > selection.anchorOffset ? selection.anchorOffset + 1 : selection.anchorOffset);
+                            //console.log('"', document.getSelection().anchorNode.nodeValue.substring(document.getSelection().anchorOffset, document.getSelection().anchorOffset + 1).charCodeAt(0), '"');
+                            if (checkValue.match(/\n/)) {
+                                let partOne = document.createTextNode(element.nodeValue.substring(0, selection.anchorOffset - 1)),
+                                partTwo = document.createTextNode(element.nodeValue.substring(selection.anchorOffset));
+                                element.parentNode.replaceChild(partTwo, element);
+                                parentNode.insertBefore(partOne, partTwo);
+                                MediumEditor.selection.moveCursor(this.base.options.ownerDocument, partTwo, 0);
+                                event.preventDefault();
+                                let eventInput = new Event('input', {
+                                    bubbles: true,
+                                    cancelable: true
+                                });
+
+                                rootNode.dispatchEvent(eventInput);// run event for the element events handling
+                                return;
+                            }
+                        }
+                    } else if (element.parentNode.nodeName === 'W') {
+                        /*let previous = element.parentNode.previousSibling;
+                        if ((!element.nodeValue || element.nodeValue.length === selection.anchorOffset) && element.parentNode.nextSibling && element.parentNode.nextSibling.nodeValue && element.parentNode.nextSibling.nodeValue.charCodeAt(0) === 10) {
+                            element.parentNode.nextSibling.nodeValue = element.parentNode.nextSibling.nodeValue.substring(1);
+                            event.preventDefault();
+                            let eventInput = new Event('input', {
+                                bubbles: true,
+                                cancelable: true
+                            });
+
+                            rootNode.dispatchEvent(eventInput);// run event for the element events handling
+                            return;
+                        } else */if (element.nodeValue && element.nodeValue.length > selection.anchorOffset) {
+                            let checkValue = element.nodeValue.substring(selection.anchorOffset > 1 ? selection.anchorOffset - 2 : 0, element.nodeValue.length > selection.anchorOffset ? selection.anchorOffset + 1 : selection.anchorOffset);
+                            if (checkValue.match(/\n/)) {
+                                let moveTo = selection.anchorOffset > 0 ? selection.anchorOffset - 1 : selection.anchorOffset;
+                                element.nodeValue = MediumEditor.util.replaceStringAt(element.nodeValue, selection.anchorOffset - 1, '');
+                                MediumEditor.selection.moveCursor(this.base.options.ownerDocument, element, moveTo);
+                                event.preventDefault();
+                                let eventInput = new Event('input', {
+                                    bubbles: true,
+                                    cancelable: true
+                                });
+
+                                rootNode.dispatchEvent(eventInput);// run event for the element events handling
+                                return;
+                            }
+                        }
+                    }
+                }
+            }
             if (!this.keys[keyCode]) {
                 return;
             }

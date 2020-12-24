@@ -169,6 +169,47 @@
     }
 
     function handleKeyup(event) {
+        if (MediumEditor.util.isKey(event, MediumEditor.util.keyCode.ENTER)) {// custom line breaks handling in handleKeypress
+            let element = document.getSelection().anchorNode,
+            rootNode = element.parentNode,
+            isLiElement = element.nodeName === 'LI';
+            while (rootNode.nodeName !== 'DIV') {
+                if (!isLiElement) {
+                    isLiElement = rootNode.nodeName === 'LI';
+                }
+                rootNode = rootNode.parentNode;
+            }
+            let isList = MediumEditor.util.isElementWhitespaceStyle(rootNode),
+            mediumEditorElement = this.elements[0];
+            if (mediumEditorElement && isLiElement) {
+                mediumEditorElement.querySelectorAll('div, p').forEach(el => {// replace all div an p with their child nodes
+                    let replaceNodes = Array.from(el.childNodes),
+                    firstNode = replaceNodes.pop(),
+                    parentNode = el.parentNode;
+                    if (el.nextSibling) {
+                        if (!isList) {
+                            //if (el.nextSibling.nodeValue.indexOf('\n') === -1) {
+                            //el.parentNode.insertBefore(document.createTextNode('\n'), el.nextSibling);
+                            //}
+                            if (el.nextSibling.nodeName !== 'BR') {
+                                let lineBreak = document.createElement('br');
+                                el.parentNode.insertBefore(lineBreak, el.nextSibling);
+                            }
+                        }
+                    }
+                    parentNode.replaceChild(firstNode, el);
+                    replaceNodes.forEach(node => {
+                        parentNode.insertBefore(node, firstNode);
+                    });
+                });
+                if (isList) {
+                    mediumEditorElement.querySelectorAll('br').forEach(br => {
+                        br.parentNode.replaceChild(document.createTextNode('\n'), br);
+                    });
+                }
+            }
+            return false;
+        }
         var node = MediumEditor.selection.getSelectionStart(this.options.ownerDocument),
             tagName;
 
@@ -178,9 +219,9 @@
 
         // https://github.com/yabwe/medium-editor/issues/994
         // Firefox thrown an error when calling `formatBlock` on an empty editable blockContainer that's not a <div>
-        if (MediumEditor.util.isMediumEditorElement(node) && node.children.length === 0 && !MediumEditor.util.isBlockContainer(node)) {
+        /*if (MediumEditor.util.isMediumEditorElement(node) && node.children.length === 0 && !MediumEditor.util.isBlockContainer(node)) {// duplicate on backspace HERE
             this.options.ownerDocument.execCommand('formatBlock', false, 'p');
-        }
+        }*/
 
         // https://github.com/yabwe/medium-editor/issues/1455
         // if somehow we have the BR as the selected element, typing does nothing, so move the cursor
@@ -217,6 +258,158 @@
         var textarea = editable.parentNode.querySelector('textarea[medium-editor-textarea-id="' + editable.getAttribute('medium-editor-textarea-id') + '"]');
         if (textarea) {
             textarea.value = editable.innerHTML.trim();
+        }
+    }
+
+    function handleKeypress(event) {
+        if (MediumEditor.util.isKey(event, MediumEditor.util.keyCode.ENTER)) {
+            let element = document.getSelection().anchorNode,
+            rootNode = element.parentNode,
+            isLiElement = element.nodeName === 'LI';
+            while (rootNode.nodeName !== 'DIV') {
+                if (!isLiElement) {
+                    isLiElement = rootNode.nodeName === 'LI';
+                }
+                rootNode = rootNode.parentNode;
+            }
+            let isList = MediumEditor.util.isElementWhitespaceStyle(rootNode),
+            br = isList ? '\n' : '<br>',
+            parentNode = element.parentNode,
+            offset = document.getSelection().anchorOffset,
+            length = element.nodeValue ? element.nodeValue.length : 0,
+            selection = length ? element.nodeValue.substring(0, offset) : '',
+            afterSelection = length && offset < length ? element.nodeValue.substring(offset, length) : '',
+            mediumEditorElement = this.elements[0];
+            if (isLiElement) {
+                return true;// keep default user agent's behaviour for lists
+            } else if (element.nodeName === 'W') {
+                let partOne;
+                if (isList) {
+                    partOne = document.createTextNode('\n');
+                } else {
+                    partOne = document.createElement('br');
+                }
+                element.parentNode.insertBefore(partOne, element);
+            } else if (element === mediumEditorElement) {
+                //console.log(document.getSelection());
+                let target = element.childNodes[document.getSelection().anchorOffset];
+                if (target) {
+                    let partOne = document.createElement('br');
+                    element.insertBefore(partOne, target.nextSibling);
+                    MediumEditor.selection.moveCursor(this.options.ownerDocument, partOne, 0);
+                    //console.log('HERE7');
+                }
+            } else if (element.parentNode.nodeName === 'DIV') {// click inside usual text node
+                if (isList) {
+                    element.nodeValue = selection + br + (afterSelection.length > 0 || element.nextSibling ? afterSelection : br);
+                    MediumEditor.selection.moveCursor(this.options.ownerDocument, element, afterSelection.length === 0 ? selection.length + 1 : selection.length + 1);
+                } else {
+                    if (element.nodeName === 'BR') {
+                        //console.log('HERE1');
+                        let partOne = document.createElement('br');
+                        parentNode.insertBefore(partOne, element);
+                    } else {
+                        let partOne = document.createTextNode(selection),
+                        partTwo = document.createElement('br'),
+                        partThree = document.createTextNode(afterSelection);
+                        if (afterSelection.trim().length === 0 && !element.nextSibling) {
+                            let partFour = document.createElement('br');
+                            parentNode.replaceChild(partFour, element);
+                            parentNode.insertBefore(partTwo, partFour);
+                            parentNode.insertBefore(partThree, partTwo);
+                            parentNode.insertBefore(partOne, partThree);
+                            MediumEditor.selection.moveCursor(this.options.ownerDocument, partFour, 0);
+                            //console.log('HERE3');
+                        } else {
+                            parentNode.replaceChild(partThree, element);
+                            parentNode.insertBefore(partOne, partThree);
+                            parentNode.insertBefore(partTwo, partThree);
+                            MediumEditor.selection.moveCursor(this.options.ownerDocument, partThree, 0);
+                        }
+                        //console.log('HERE2');
+                    }
+                }
+            } else {// click inside text node, which parent is not main div and not <w>, e.g. <i>Some text f<u>o<ENTER_HERE>r</u> line <ENTER_HERE>br<u>e</u>ak testing.</i>
+                //console.log(element.parentNode.nodeName);
+                let baseNode = parentNode.parentNode,
+                partOne = document.createTextNode(selection),
+                containerOne = document.createElement(parentNode.nodeName),
+                containerTwo = document.createElement(parentNode.nodeName);
+                MediumEditor.util.copyAttributes(containerOne, parentNode);
+                MediumEditor.util.copyAttributes(containerTwo, parentNode);
+                //console.log(element.parentNode);
+                //return false;
+                let partTwo;
+                if (['LI'].indexOf(parentNode.nodeName) !== -1) {
+                    partTwo = document.createElement('li');
+                } else if (['P', 'DIV'].indexOf(parentNode.nodeName) === -1) {
+                    if (!isList) {
+                        partTwo = document.createElement('br');
+                    } else {
+                        partTwo = document.createTextNode('\n');
+                    }
+                }
+                let allChildNodes = Array.from(parentNode.childNodes),
+                currentIndex = allChildNodes.indexOf(element),
+                lastNode = null;
+                for (let i = allChildNodes.length - 1; i > currentIndex; --i) {
+                    let currentNode = allChildNodes[i];
+                    if (!lastNode) {
+                        containerTwo.appendChild(currentNode);
+                    } else {
+                        containerTwo.insertBefore(currentNode, lastNode);
+                    }
+                    lastNode = currentNode;
+                }
+                if (afterSelection.length > 0) {
+                    let partThree = document.createTextNode(afterSelection);
+                    /*baseNode.replaceChild(partThree, parentNode);
+                    baseNode.insertBefore(partOne, partThree);
+                    if (['LI'].indexOf(parentNode.nodeName) === -1) {
+                        baseNode.insertBefore(partTwo, partThree);
+                    }
+                    MediumEditor.selection.moveCursor(this.options.ownerDocument, partThree, 0);*/
+                    if (lastNode) {
+                        containerTwo.insertBefore(partThree, lastNode);
+                    } else {
+                        containerTwo.appendChild(partThree);
+                    }
+                    //console.log('HERE4');
+                }/* else {
+                    baseNode.replaceChild(partTwo, parentNode);
+                    baseNode.insertBefore(partOne, partTwo);
+                    MediumEditor.selection.moveCursor(this.options.ownerDocument, partTwo.nextSibling ? partTwo.nextSibling : partTwo, 0);
+                    //console.log('HERE5');// end of block + <br><br> - cursor not moved
+                    //console.log(partOne, partTwo);
+                    if (!partTwo.nextSibling) {
+                        let partThree = partTwo.cloneNode();
+                        baseNode.insertBefore(partThree, partTwo);
+                        //console.log('HERE6');
+                    }
+                }*/
+                baseNode.replaceChild(containerTwo, parentNode);
+                lastNode = partOne;
+                containerOne.appendChild(partOne);
+                for (let i = currentIndex - 1; i >=0; --i) {
+                    let currentNode = allChildNodes[i];
+                    containerOne.insertBefore(currentNode, lastNode);
+                    lastNode = currentNode;
+                }
+                baseNode.insertBefore(containerOne, containerTwo);
+                if (['LI'].indexOf(parentNode.nodeName) === -1 && partTwo) {
+                    baseNode.insertBefore(partTwo, containerTwo);
+                }
+                MediumEditor.selection.moveCursor(this.options.ownerDocument, containerTwo.firstChild ? containerTwo.firstChild : containerTwo, 0);
+            }
+            //return false;
+
+            event.preventDefault();
+            var eventInput = new Event('input', {
+                bubbles: true,
+                cancelable: true
+            });
+
+            rootNode.dispatchEvent(eventInput);// run event for the element events handling
         }
     }
 
@@ -449,6 +642,7 @@
             // for certain cases when enter is pressed
             if (!this.options.disableReturn && !element.getAttribute('data-disable-return')) {
                 this.on(element, 'keyup', handleKeyup.bind(this));
+                element.onkeypress = handleKeypress.bind(this);// cancel all events, including user agent's default behaviour
             }
 
             var elementId = MediumEditor.util.guid();
@@ -952,9 +1146,9 @@
             }
 
             // do some DOM clean-up for known browser issues after the action
-            if (action === 'insertunorderedlist' || action === 'insertorderedlist') {
-                MediumEditor.util.cleanListDOM(this.options.ownerDocument, this.getSelectedParentElement());
-            }
+            //if (action === 'insertunorderedlist' || action === 'insertorderedlist') {
+            //    MediumEditor.util.cleanListDOM(this.options.ownerDocument, this.getSelectedParentElement());
+            //}
 
             // https://github.com/yabwe/medium-editor/issues/1496
             // But only if something is selected i.e, getSelectedParentElement !== {}
